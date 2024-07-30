@@ -86,7 +86,8 @@ int main()
     // load models
     // -----------
     //Model ourModel(FileSystem::getPath("resources/objects/backpack/backpack.obj"));
-    Model ourModel("C:/Users/ASUS/Documents/Visual Studio 2022/OpenGL/OpenGL/model/backpack/backpack.obj");
+   // Model ourModel("C:/Users/ASUS/Documents/Visual Studio 2022/OpenGL/OpenGL/model/backpack/backpack.obj");
+    Model ourModel("C:/Users/Alex/Documents/ALEX/UNIVERSIDAD/EPN/CARRERA/2024-A/GRAPHIC COMPUTER/OpenGL/OpenGL/ProyectoCompuGraficaGrupo4-24A/OpenGL/model/backpack/backpack.obj");
     //Model ourModel("model/backpack/backpack.obj");
     
     
