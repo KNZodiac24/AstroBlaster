@@ -60,6 +60,9 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
+    const unsigned int ANCHO_MONITOR = glfwGetVideoMode(glfwGetPrimaryMonitor())->width;
+    const unsigned int ALTO_MONITOR = glfwGetVideoMode(glfwGetPrimaryMonitor())->height;
+    glfwSetWindowPos(window, (ANCHO_MONITOR / 2) - (SCR_WIDTH / 2), (ALTO_MONITOR / 2) - (SCR_HEIGHT / 2));
 
     // tell GLFW to capture our mouse
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -87,7 +90,8 @@ int main()
     // -----------
     //Model ourModel(FileSystem::getPath("resources/objects/backpack/backpack.obj"));
    // Model ourModel("C:/Users/ASUS/Documents/Visual Studio 2022/OpenGL/OpenGL/model/backpack/backpack.obj");
-    Model ourModel("C:/Users/Alex/Documents/ALEX/UNIVERSIDAD/EPN/CARRERA/2024-A/GRAPHIC COMPUTER/OpenGL/OpenGL/ProyectoCompuGraficaGrupo4-24A/OpenGL/model/backpack/backpack.obj");
+    //Model ourModel("C:/Users/Alex/Documents/ALEX/UNIVERSIDAD/EPN/CARRERA/2024-A/GRAPHIC COMPUTER/OpenGL/OpenGL/ProyectoCompuGraficaGrupo4-24A/OpenGL/model/backpack/backpack.obj");
+    Model ourModel("C:/Users/ASUS/Documents/Visual Studio 2022/OpenGL/OpenGL/model/backpack/backpack.obj");
     //Model ourModel("model/backpack/backpack.obj");
     
     
