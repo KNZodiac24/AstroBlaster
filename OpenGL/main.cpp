@@ -18,11 +18,11 @@
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void processInput(GLFWwindow *window);
+void processInput(GLFWwindow* window);
 unsigned int loadCubemap(vector<std::string> faces);
 
 // settings
-const unsigned int SCR_WIDTH = 800;
+const unsigned int SCR_WIDTH = 1000;
 const unsigned int SCR_HEIGHT = 600;
 
 // camera
@@ -34,6 +34,12 @@ bool firstMouse = true;
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+
+// Parámetros nave
+glm::vec3 ubicacionNave = glm::vec3(-1.3f, -1.0f, 7.5f);
+float rotacionNave = glm::radians(0.0f);
+bool teclaAPresionada = false;
+bool teclaDPresionada = false;
 
 int main()
 {
@@ -76,9 +82,6 @@ int main()
         return -1;
     }
 
-    // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
-    stbi_set_flip_vertically_on_load(true);
-
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
@@ -89,7 +92,8 @@ int main()
 	Shader skyboxShader("shaders/6.1.skybox.vs", "shaders/6.1.skybox.fs");
 
     float skyboxVertices[] = {
-        // positions          
+        // positions
+        // atras          
         -1.0f,  1.0f, -1.0f,
         -1.0f, -1.0f, -1.0f,
          1.0f, -1.0f, -1.0f,
@@ -97,6 +101,7 @@ int main()
          1.0f,  1.0f, -1.0f,
         -1.0f,  1.0f, -1.0f,
 
+        // izquierda
         -1.0f, -1.0f,  1.0f,
         -1.0f, -1.0f, -1.0f,
         -1.0f,  1.0f, -1.0f,
@@ -104,6 +109,7 @@ int main()
         -1.0f,  1.0f,  1.0f,
         -1.0f, -1.0f,  1.0f,
 
+         // derecha
          1.0f, -1.0f, -1.0f,
          1.0f, -1.0f,  1.0f,
          1.0f,  1.0f,  1.0f,
@@ -111,6 +117,7 @@ int main()
          1.0f,  1.0f, -1.0f,
          1.0f, -1.0f, -1.0f,
 
+         // frontal
         -1.0f, -1.0f,  1.0f,
         -1.0f,  1.0f,  1.0f,
          1.0f,  1.0f,  1.0f,
@@ -118,6 +125,7 @@ int main()
          1.0f, -1.0f,  1.0f,
         -1.0f, -1.0f,  1.0f,
 
+        // arriba
         -1.0f,  1.0f, -1.0f,
          1.0f,  1.0f, -1.0f,
          1.0f,  1.0f,  1.0f,
@@ -125,11 +133,12 @@ int main()
         -1.0f,  1.0f,  1.0f,
         -1.0f,  1.0f, -1.0f,
 
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
+        // abajo
+        -1.0f, -1.0f, -1.0f, 
+        -1.0f, -1.0f,  1.0f, 
+         1.0f, -1.0f, -1.0f, 
+         1.0f, -1.0f, -1.0f, 
+        -1.0f, -1.0f,  1.0f, 
          1.0f, -1.0f,  1.0f
     };
 
@@ -145,12 +154,12 @@ int main()
 
     vector<std::string> faces
     {
-        "textures/spacerigth2.png",//derecha
-        "textures/spaceleft2.png",//izquierda
-        "textures/spaceup2.png",//abajo
-        "textures/spacedown2.png",//arriba
-        "textures/spacefront2.png",//adelante
-        "textures/spaceback2.png"//atras
+        "textures/spacerigth3.png",//derecha
+        "textures/spaceleft3.png",//izquierda
+        "textures/spaceup3.png",//abajo
+        "textures/spacedown3.png",//arriba
+        "textures/spacefront3.png",//adelante
+        "textures/spaceback3.png"//atras
     };
     unsigned int cubemapTexture = loadCubemap(faces);
 
@@ -158,17 +167,11 @@ int main()
     skyboxShader.setInt("skybox", 0);
 
     // load models
-    // -----------
-    //Model ourModel(FileSystem::getPath("resources/objects/backpack/backpack.obj"));
-    //Model ourModel("C:/Users/ASUS/Documents/Visual Studio 2022/OpenGL/OpenGL/model/backpack/backpack.obj");
-    //Model ourModel("C:/Users/Alex/Documents/ALEX/UNIVERSIDAD/EPN/CARRERA/2024-A/GRAPHIC COMPUTER/OpenGL/OpenGL/ProyectoCompuGraficaGrupo4-24A/OpenGL/model/backpack/backpack.obj");
-    //Model ourModel("C:/Users/Lucia Flores/Documents/Visual Studio 2022/OpenGL/OpenGL/ProyectoCompuGraficaGrupo4-24A/OpenGL/model/backpack/backpack.obj");
-    Model ourModel("model/backpack/backpack.obj");
+    Model nave("model/spaceship/spaceship.obj");
     
     
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -178,10 +181,6 @@ int main()
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-
-        // input
-        // -----
-        processInput(window);
 
         // render
         // ------
@@ -197,13 +196,18 @@ int main()
         ourShader.setMat4("projection", projection);
         ourShader.setMat4("view", view);
 
-        // render the loaded model
+        // render the loaded modela
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+        model = glm::translate(model, ubicacionNave);
+        model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
+        model = glm::rotate(model, glm::radians(164.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(20.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, rotacionNave, glm::vec3(0.0f, 0.0f, 1.0f));
         ourShader.setMat4("model", model);
-        ourModel.Draw(ourShader);
-		
+        nave.Draw(ourShader);
+    
+        processInput(window);
+        
 		
 		glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
         skyboxShader.use();
@@ -218,16 +222,10 @@ int main()
         glBindVertexArray(0);
         glDepthFunc(GL_LESS);
 
-
-
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    // glfw: terminate, clearing all previously allocated GLFW resources.
-    // ------------------------------------------------------------------
     glfwTerminate();
     return 0;
 }
@@ -239,14 +237,39 @@ void processInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(FORWARD, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(BACKWARD, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(RIGHT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
+        if (!teclaAPresionada) {
+            teclaAPresionada = true;
+        }
+        ubicacionNave += glm::vec3(0.005f, 0.0f, 0.0012f);
+        rotacionNave = glm::radians(15.0f);
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_RELEASE) {
+        if (teclaAPresionada) {
+            teclaAPresionada = false;
+            rotacionNave = glm::radians(0.0f);
+        }
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
+        if (!teclaDPresionada) {
+            teclaDPresionada = true;
+        }
+        ubicacionNave += glm::vec3(-0.005f, 0.0f, -0.0012f);
+        rotacionNave = glm::radians(-15.0f);
+    }
+    
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE) {
+        if (teclaDPresionada) {
+            teclaDPresionada = false;
+            rotacionNave = glm::radians(0.0f);
+        }
+    }
+        
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {}
+        // disparar
+
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -290,13 +313,15 @@ unsigned int loadCubemap(vector<std::string> faces)
     unsigned int textureID;
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
-
+    
     int width, height, nrChannels;
     for (unsigned int i = 0; i < faces.size(); i++)
     {
+        
         unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
         if (data)
         {
+            //stbi_set_flip_vertically_on_load(true);
             glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
             stbi_image_free(data);
         }
