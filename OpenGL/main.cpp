@@ -10,6 +10,7 @@
 #include <learnopengl/model.h>
 
 #include <iostream>
+#include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION 
 #include <learnopengl/stb_image.h>
@@ -20,6 +21,15 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window);
 unsigned int loadCubemap(vector<std::string> faces);
+glm::vec3 getShipForwardDirection(float rotacionNave);
+
+struct Bullet {
+    glm::vec3 position;
+    glm::vec3 direction;
+    float speed;  // Add speed to the bullet struct
+};
+
+vector<Bullet> bullets;
 
 // settings
 const unsigned int SCR_WIDTH = 1000;
@@ -79,7 +89,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Exercise 16 Task 1", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Naves", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -195,7 +205,61 @@ int main()
     Model modeloAsteroide("model/asteroide/asteroide.obj");
    
     // Genera asteroides al inicio
-    generarAsteroides(50);
+    generarAsteroides(5);
+
+    float bulletVertices[] = {
+        -0.05f, -0.05f, -0.05f,
+         0.05f, -0.05f, -0.05f,
+         0.05f,  0.05f, -0.05f,
+         0.05f,  0.05f, -0.05f,
+        -0.05f,  0.05f, -0.05f,
+        -0.05f, -0.05f, -0.05f,
+
+        -0.05f, -0.05f,  0.05f,
+         0.05f, -0.05f,  0.05f,
+         0.05f,  0.05f,  0.05f,
+         0.05f,  0.05f,  0.05f,
+        -0.05f,  0.05f,  0.05f,
+        -0.05f, -0.05f,  0.05f,
+
+        -0.05f,  0.05f,  0.05f,
+        -0.05f,  0.05f, -0.05f,
+        -0.05f, -0.05f, -0.05f,
+        -0.05f, -0.05f, -0.05f,
+        -0.05f, -0.05f,  0.05f,
+        -0.05f,  0.05f,  0.05f,
+
+         0.05f,  0.05f,  0.05f,
+         0.05f,  0.05f, -0.05f,
+         0.05f, -0.05f, -0.05f,
+         0.05f, -0.05f, -0.05f,
+         0.05f, -0.05f,  0.05f,
+         0.05f,  0.05f,  0.05f,
+
+        -0.05f, -0.05f, -0.05f,
+         0.05f, -0.05f, -0.05f,
+         0.05f, -0.05f,  0.05f,
+         0.05f, -0.05f,  0.05f,
+        -0.05f, -0.05f,  0.05f,
+        -0.05f, -0.05f, -0.05f,
+
+        -0.05f,  0.05f, -0.05f,
+         0.05f,  0.05f, -0.05f,
+         0.05f,  0.05f,  0.05f,
+         0.05f,  0.05f,  0.05f,
+        -0.05f,  0.05f,  0.05f,
+        -0.05f,  0.05f, -0.05f
+    };
+
+    unsigned int bulletVAO, bulletVBO;
+    glGenVertexArrays(1, &bulletVAO);
+    glGenBuffers(1, &bulletVBO);
+    glBindVertexArray(bulletVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, bulletVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(bulletVertices), bulletVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
 
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -271,6 +335,27 @@ int main()
         glBindVertexArray(0);
         glDepthFunc(GL_LESS);
 
+        // Renderizar las balas
+
+        ourShader.use();
+        ourShader.setVec3("objectColor", glm::vec3(1.0f, 0.0f, 0.0f));
+
+        for (auto& bullet : bullets) {
+            bullet.position += bullet.direction * bullet.speed * deltaTime;
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, bullet.position);
+            model = glm::scale(model, glm::vec3(0.7f));
+            ourShader.setMat4("model", model);
+            glBindVertexArray(bulletVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+
+        //Eliminar Bala lejanas
+        bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
+            [](const Bullet& b) { return glm::length(b.position - ubicacionNave) > 20.0f; }),
+            bullets.end());
+
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -316,9 +401,29 @@ void processInput(GLFWwindow *window)
         }
     }
         
-    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {}
-        // disparar
+    static float lastShot = 0.0f;
+    float currentTime = glfwGetTime();
 
+    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && currentTime - lastShot > 0.5f) {
+        Bullet newBullet;
+        // Calculamos la posición inicial de la bala basada en la posición y rotación de la nave
+        glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), rotacionNave, glm::vec3(0.0f, 0.0f, 1.0f));
+        glm::vec3 offset = glm::vec3(rotationMatrix * glm::vec4(0.0f, 0.0f, -0.5f, 0.0f));
+        newBullet.position = ubicacionNave + offset;
+
+        // La dirección de la bala siempre será hacia adelante en el eje Z
+        newBullet.direction = getShipForwardDirection(rotacionNave);
+        newBullet.speed = 3.0f;
+        bullets.push_back(newBullet);
+        lastShot = currentTime;
+        std::cout << "Bullet created at position: " << newBullet.position.x << ", " << newBullet.position.y << ", " << newBullet.position.z << std::endl;
+    }
+}
+
+glm::vec3 getShipForwardDirection(float rotacionNave) {
+    // Calculate the forward direction based on the ship's rotation
+    glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), rotacionNave, glm::vec3(0.0f, 0.0f, 1.0f));
+    return glm::normalize(glm::vec3(rotationMatrix * glm::vec4(-0.12f, 0.15f, 0.5f, 0.0f)));
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
