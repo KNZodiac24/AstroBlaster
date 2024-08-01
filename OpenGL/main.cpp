@@ -40,6 +40,29 @@ glm::vec3 ubicacionNave = glm::vec3(-1.3f, -1.0f, 7.5f);
 float rotacionNave = glm::radians(0.0f);
 bool teclaAPresionada = false;
 bool teclaDPresionada = false;
+struct Asteroide {
+    glm::vec3 posicion;
+    float escala;
+    float velocidad;
+};
+// Lista de asteroides
+std::vector<Asteroide> asteroides;
+// Función para generar asteroides aleatoriamente
+void generarAsteroides(int cantidad) {
+
+    for (int i = 0; i < cantidad; ++i) {
+        for (int i = 0; i < cantidad; ++i) {
+            Asteroide asteroide;
+            float offsetX = (rand() % 20 - 10) * 0.5f; // Ajusta el rango según tu escena
+            float offsetY = (rand() % 20 - 10) * 0.5f;
+            float distance = (rand() % 50 + 10); // Distancia inicial desde la cámara hacia adelante
+            asteroide.posicion = camera.Position + camera.Front * distance + glm::vec3(offsetX, offsetY, 0.0f);
+            asteroide.escala = ((rand() % 100) / 100000.0f) + 0.0005f; // Escala aleatoria entre 0.0005 y 0.0010
+            asteroide.velocidad = (rand() % 10 + 1) / 10.0f; // Velocidad aleatoria
+            asteroides.push_back(asteroide);
+        }
+    }
+}
 
 int main()
 {
@@ -168,8 +191,12 @@ int main()
 
     // load models
     Model nave("model/spaceship/spaceship.obj");
-    
-    
+    // Carga el modelo del asteroide
+    Model modeloAsteroide("model/asteroide/asteroide.obj");
+   
+    // Genera asteroides al inicio
+    generarAsteroides(50);
+
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     // render loop
@@ -189,13 +216,35 @@ int main()
 
         // don't forget to enable shader before setting uniforms
         ourShader.use();
-
+     
+        // Cambiar la dirección de la cámara para que mire hacia atrás
+       // camera.Front = glm::vec3(-1.3f, -1.0f, 7.5f);
+       // Configurar la dirección de la cámara para que mire hacia la posición dada
+        camera.Front = ubicacionNave;
+        camera.Position= glm::vec3(0.0f, 0.0f, 0.0f);
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
         ourShader.setMat4("projection", projection);
         ourShader.setMat4("view", view);
+        // Actualiza y renderiza los asteroides
+        for (auto& asteroide : asteroides) {
+            // Mueve los asteroides en la dirección opuesta a camera.Front
+            asteroide.posicion -= camera.Front * asteroide.velocidad * deltaTime;
+            if (glm::dot(asteroide.posicion - camera.Position, -camera.Front) > 1.0f) {
+                // Resetear posición del asteroide cuando pasa más allá de la cámara
+                float offsetX = (rand() % 20 - 10) * 0.5f;
+                float offsetY = (rand() % 20 - 10) * 0.5f;
+                float distance = (rand() % 50 + 10);
+                asteroide.posicion = camera.Position + camera.Front * distance + glm::vec3(offsetX, offsetY, 0.0f);
+            }
 
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, asteroide.posicion);
+            model = glm::scale(model, glm::vec3(asteroide.escala));
+            ourShader.setMat4("model", model);
+            modeloAsteroide.Draw(ourShader);
+        }
         // render the loaded modela
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, ubicacionNave);
@@ -292,8 +341,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
         firstMouse = false;
     }
 
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+    float xoffset =0.0;
+    float yoffset =0.0; // reversed since y-coordinates go from bottom to top
 
     lastX = xpos;
     lastY = ypos;
