@@ -21,15 +21,15 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window);
 unsigned int loadCubemap(vector<std::string> faces);
-glm::vec3 getShipForwardDirection(float rotacionNave);
+glm::vec3 getShipForwardDirection();
 
-struct Bullet {
-    glm::vec3 position;
-    glm::vec3 direction;
-    float speed;  // Add speed to the bullet struct
+struct Bala {
+    glm::vec3 posicion;
+    glm::vec3 direccion;
+    float velocidad;  // Add speed to the bullet struct
 };
 
-vector<Bullet> bullets;
+vector<Bala> balas;
 
 // settings
 const unsigned int SCR_WIDTH = 1000;
@@ -50,27 +50,36 @@ glm::vec3 ubicacionNave = glm::vec3(-1.3f, -1.0f, 7.5f);
 float rotacionNave = glm::radians(0.0f);
 bool teclaAPresionada = false;
 bool teclaDPresionada = false;
+
 struct Asteroide {
-    glm::vec3 posicion;
+    glm::vec3 posicionInicial;
+    glm::vec3 posicionActual;
     float escala;
     float velocidad;
 };
 // Lista de asteroides
 std::vector<Asteroide> asteroides;
-// Función para generar asteroides aleatoriamente
-void generarAsteroides(int cantidad) {
 
-    for (int i = 0; i < cantidad; ++i) {
-        for (int i = 0; i < cantidad; ++i) {
-            Asteroide asteroide;
-            float offsetX = (rand() % 20 - 10) * 0.5f; // Ajusta el rango según tu escena
-            float offsetY = (rand() % 20 - 10) * 0.5f;
-            float distance = (rand() % 50 + 10); // Distancia inicial desde la cámara hacia adelante
-            asteroide.posicion = camera.Position + camera.Front * distance + glm::vec3(offsetX, offsetY, 0.0f);
-            asteroide.escala = ((rand() % 100) / 100000.0f) + 0.0005f; // Escala aleatoria entre 0.0005 y 0.0010
-            asteroide.velocidad = (rand() % 10 + 1) / 10.0f; // Velocidad aleatoria
-            asteroides.push_back(asteroide);
-        }
+// Función para generar asteroides aleatoriamente
+static void generarAsteroides() {
+
+    glm::vec3 pos[] = {
+        glm::vec3(-4.5f, 6.8f, 25.62f),
+        glm::vec3(-5.4f, 6.8f, 25.4f),
+        glm::vec3(-6.4f, 6.8f, 25.15f),
+        glm::vec3(-7.4f, 6.8f, 24.92f),
+        glm::vec3(-8.4f, 6.8f, 24.7f)
+    };
+
+    for (int i = 0; i < 15; i++) {
+        Asteroide asteroide;
+        float offset = (rand() % 5) * 0.5f;
+        int ran = (rand() % 5);
+        asteroide.posicionInicial = pos[ran] ;
+        asteroide.posicionActual = asteroide.posicionInicial + glm::vec3(0.0f, offset, offset);
+        asteroide.escala = 0.0025f;
+        asteroide.velocidad = 22.0f;
+        asteroides.push_back(asteroide);
     }
 }
 
@@ -199,15 +208,14 @@ int main()
     skyboxShader.use();
     skyboxShader.setInt("skybox", 0);
 
-    // load models
+    // Cargamos los modelos
     Model nave("model/spaceship/spaceship.obj");
-    // Carga el modelo del asteroide
     Model modeloAsteroide("model/asteroide/asteroide.obj");
    
     // Genera asteroides al inicio
-    generarAsteroides(5);
+    generarAsteroides();
 
-    float bulletVertices[] = {
+    float verticesBala[] = {
         -0.05f, -0.05f, -0.05f,
          0.05f, -0.05f, -0.05f,
          0.05f,  0.05f, -0.05f,
@@ -251,12 +259,12 @@ int main()
         -0.05f,  0.05f, -0.05f
     };
 
-    unsigned int bulletVAO, bulletVBO;
-    glGenVertexArrays(1, &bulletVAO);
-    glGenBuffers(1, &bulletVBO);
-    glBindVertexArray(bulletVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, bulletVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(bulletVertices), bulletVertices, GL_STATIC_DRAW);
+    unsigned int balaVAO, balaVBO;
+    glGenVertexArrays(1, &balaVAO);
+    glGenBuffers(1, &balaVBO);
+    glBindVertexArray(balaVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, balaVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(verticesBala), verticesBala, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
@@ -265,6 +273,8 @@ int main()
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     // render loop
     // -----------
+    double tiempoAnterior = glfwGetTime();
+    double intervalo = 3.0;
     while (!glfwWindowShouldClose(window))
     {
         // per-frame time logic
@@ -281,35 +291,32 @@ int main()
         // don't forget to enable shader before setting uniforms
         ourShader.use();
      
-        // Cambiar la dirección de la cámara para que mire hacia atrás
-       // camera.Front = glm::vec3(-1.3f, -1.0f, 7.5f);
-       // Configurar la dirección de la cámara para que mire hacia la posición dada
-        camera.Front = ubicacionNave;
-        camera.Position= glm::vec3(0.0f, 0.0f, 0.0f);
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
         ourShader.setMat4("projection", projection);
         ourShader.setMat4("view", view);
+
         // Actualiza y renderiza los asteroides
         for (auto& asteroide : asteroides) {
-            // Mueve los asteroides en la dirección opuesta a camera.Front
-            asteroide.posicion -= camera.Front * asteroide.velocidad * deltaTime;
-            if (glm::dot(asteroide.posicion - camera.Position, -camera.Front) > 1.0f) {
+            
+            // Mueve los asteroides en dirección hacia la nave
+            asteroide.posicionActual -= glm::vec3(-0.057f, 0.087f, 0.2f) * asteroide.velocidad * deltaTime;
+
+            if (glm::dot(asteroide.posicionActual - camera.Position, -camera.Front) > 1.0f) {
                 // Resetear posición del asteroide cuando pasa más allá de la cámara
-                float offsetX = (rand() % 20 - 10) * 0.5f;
-                float offsetY = (rand() % 20 - 10) * 0.5f;
-                float distance = (rand() % 50 + 10);
-                asteroide.posicion = camera.Position + camera.Front * distance + glm::vec3(offsetX, offsetY, 0.0f);
+                float offset = (rand() % 5) * 0.5f;
+                asteroide.posicionActual = asteroide.posicionInicial + glm::vec3(0.0f, offset, offset);
             }
 
             glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, asteroide.posicion);
+            model = glm::translate(model, asteroide.posicionActual);
             model = glm::scale(model, glm::vec3(asteroide.escala));
             ourShader.setMat4("model", model);
             modeloAsteroide.Draw(ourShader);
         }
-        // render the loaded modela
+           
+        // render the loaded model
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, ubicacionNave);
         model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
@@ -340,20 +347,21 @@ int main()
         ourShader.use();
         ourShader.setVec3("objectColor", glm::vec3(1.0f, 0.0f, 0.0f));
 
-        for (auto& bullet : bullets) {
-            bullet.position += bullet.direction * bullet.speed * deltaTime;
+        for (auto& bala : balas) {
+            bala.posicion += bala.direccion * bala.velocidad * deltaTime;
             glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, bullet.position);
+            model = glm::translate(model, bala.posicion);
             model = glm::scale(model, glm::vec3(0.7f));
             ourShader.setMat4("model", model);
-            glBindVertexArray(bulletVAO);
+            glBindVertexArray(balaVAO);
             glDrawArrays(GL_TRIANGLES, 0, 36);
+            //std::cout << bala.posicion.x << ", " << bala.posicion.y << ", " << bala.posicion.z << std::endl;
         }
 
-        //Eliminar Bala lejanas
-        bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
-            [](const Bullet& b) { return glm::length(b.position - ubicacionNave) > 20.0f; }),
-            bullets.end());
+        //Eliminar balas lejanas
+        balas.erase(std::remove_if(balas.begin(), balas.end(),
+            [](const Bala& b) { return glm::length(b.posicion - ubicacionNave) > 20.0f; }),
+            balas.end());
 
 
         glfwSwapBuffers(window);
@@ -375,8 +383,10 @@ void processInput(GLFWwindow *window)
         if (!teclaAPresionada) {
             teclaAPresionada = true;
         }
-        ubicacionNave += glm::vec3(0.005f, 0.0f, 0.0012f);
-        rotacionNave = glm::radians(15.0f);
+        if (ubicacionNave.x <= 0.99f && ubicacionNave.z <= 8.37f) {
+            ubicacionNave += glm::vec3(0.005f, 0.0f, 0.0012f);
+            rotacionNave = glm::radians(15.0f);
+        }
     }
 
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_RELEASE) {
@@ -386,12 +396,14 @@ void processInput(GLFWwindow *window)
         }
     }
 
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
         if (!teclaDPresionada) {
             teclaDPresionada = true;
         }
-        ubicacionNave += glm::vec3(-0.005f, 0.0f, -0.0012f);
-        rotacionNave = glm::radians(-15.0f);
+        if (ubicacionNave.x >= -3.74f && ubicacionNave.z >= 6.6f) {
+            ubicacionNave += glm::vec3(-0.005f, 0.0f, -0.0012f);
+            rotacionNave = glm::radians(-15.0f);
+        }
     }
     
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE) {
@@ -400,30 +412,41 @@ void processInput(GLFWwindow *window)
             rotacionNave = glm::radians(0.0f);
         }
     }
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+        if (ubicacionNave.y <= 1.2f) {
+            ubicacionNave += glm::vec3(0.0f, 0.003f, 0.0f);
+        }
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+        if(ubicacionNave.y >= -2.0f )
+        ubicacionNave += glm::vec3(0.0f, -0.003f, 0.0f);
+    }
         
     static float lastShot = 0.0f;
     float currentTime = glfwGetTime();
 
-    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && currentTime - lastShot > 0.5f) {
-        Bullet newBullet;
+    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && currentTime - lastShot > 0.35f) {
+        Bala nuevaBala;
         // Calculamos la posición inicial de la bala basada en la posición y rotación de la nave
         glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), rotacionNave, glm::vec3(0.0f, 0.0f, 1.0f));
-        glm::vec3 offset = glm::vec3(rotationMatrix * glm::vec4(0.0f, 0.0f, -0.5f, 0.0f));
-        newBullet.position = ubicacionNave + offset;
+        glm::vec3 offset = glm::vec3(rotationMatrix * glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+        nuevaBala.posicion = ubicacionNave /*+ offset*/;
 
         // La dirección de la bala siempre será hacia adelante en el eje Z
-        newBullet.direction = getShipForwardDirection(rotacionNave);
-        newBullet.speed = 3.0f;
-        bullets.push_back(newBullet);
+        nuevaBala.direccion = getShipForwardDirection();
+        nuevaBala.velocidad = 3.0f;
+        balas.push_back(nuevaBala);
         lastShot = currentTime;
-        std::cout << "Bullet created at position: " << newBullet.position.x << ", " << newBullet.position.y << ", " << newBullet.position.z << std::endl;
+        //std::cout << "Bullet created at position: " << nuevaBala.posicion.x << ", " << nuevaBala.posicion.y << ", " << nuevaBala.posicion.z << std::endl;
     }
 }
 
-glm::vec3 getShipForwardDirection(float rotacionNave) {
+glm::vec3 getShipForwardDirection() {
     // Calculate the forward direction based on the ship's rotation
-    glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), rotacionNave, glm::vec3(0.0f, 0.0f, 1.0f));
-    return glm::normalize(glm::vec3(rotationMatrix * glm::vec4(-0.12f, 0.15f, 0.5f, 0.0f)));
+    glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), /*rotacionNave*/0.0f, glm::vec3(0.0f, 0.0f, 1.0f));
+    return glm::normalize(glm::vec3(rotationMatrix * glm::vec4(-0.13f, 0.2f, 0.45f, 0.0f)));
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -446,8 +469,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
         firstMouse = false;
     }
 
-    float xoffset =0.0;
-    float yoffset =0.0; // reversed since y-coordinates go from bottom to top
+    float xoffset = 0.0;
+    float yoffset = 0.0; // reversed since y-coordinates go from bottom to top
 
     lastX = xpos;
     lastY = ypos;
