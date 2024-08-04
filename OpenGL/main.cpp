@@ -84,6 +84,16 @@ static void generarAsteroides() {
     }
 }
 
+// Funcion para verificar las colisiones
+bool checkCollision(const Bala& bullet, const Asteroide& asteroide) {
+    float distance = glm::length(bullet.posicion - asteroide.posicionActual);
+    return distance < (asteroide.escala + 0.50f); // Ajusta 0.05f seg?n el tama?o de la bala y el asteroide
+}
+bool checkCollision(const glm::vec3& pos1, float scale1, const glm::vec3& pos2, float scale2) {
+    float distance = glm::length(pos1 - pos2);
+    return distance < (scale1 + scale2);
+}
+
 int main()
 {
     // glfw: initialize and configure
@@ -396,6 +406,37 @@ int main()
             glBindVertexArray(balaVAO);
             glDrawArrays(GL_TRIANGLES, 0, 36);
             //std::cout << bala.posicion.x << ", " << bala.posicion.y << ", " << bala.posicion.z << std::endl;
+        }
+        //cambie esto
+        // Detecci?n y eliminaci?n de colisiones
+        for (auto bulletIt = balas.begin(); bulletIt != balas.end(); ) {
+            bool collisionDetected = false;
+            for (auto asteroidIt = asteroides.begin(); asteroidIt != asteroides.end(); ) {
+                if (checkCollision(bulletIt->posicion, 0.35f, asteroidIt->posicionActual, asteroidIt->escala)) {
+                    collisionDetected = true;
+                    asteroidIt = asteroides.erase(asteroidIt); // Eliminar asteroide
+                    std::cout << "Asteroide destruido" << std::endl; // Mensaje en la consola
+                }
+                else {
+                    ++asteroidIt;
+                }
+            }
+            if (collisionDetected) {
+                bulletIt = balas.erase(bulletIt); // Eliminar bala
+                std::cout << "Bala destruida" << std::endl; // Mensaje en la consola
+            }
+            else {
+                ++bulletIt;
+            }
+        }
+
+
+        // Verificar colisi?n entre la nave y los asteroides
+        for (const auto& asteroide : asteroides) {
+            if (checkCollision(ubicacionNave, 0.3f, asteroide.posicionActual, asteroide.escala)) {
+                std::cout << "perdiste" << std::endl; // Mensaje en la consola
+                break; // Salir del bucle si hay una colisi?n
+            }
         }
 
         //Eliminar balas lejanas
