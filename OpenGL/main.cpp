@@ -15,6 +15,11 @@
 #define STB_IMAGE_IMPLEMENTATION 
 #include <learnopengl/stb_image.h>
 
+#include <map>
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
+#include <irrklang/irrKlang.h>//sonido
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -23,6 +28,35 @@ void processInput(GLFWwindow* window);
 unsigned int loadCubemap(vector<std::string> faces);
 glm::vec3 getShipForwardDirection();
 unsigned int loadTexture(char const* path);
+void LoadFont(const std::string& font_path);
+void InitTexto();
+void RenderText(Shader& shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color);
+
+irrklang::ISoundEngine* SoundEngine = irrklang::createIrrKlangDevice();
+
+struct Character {
+    GLuint TextureID;
+    glm::ivec2 Size;
+    glm::ivec2 Bearing;
+    GLuint Advance;
+};
+
+static std::string convertirAChar(int num) {
+    std::ostringstream oss;
+    oss << num;
+    std::string str = oss.str();
+
+    return str;
+}
+
+static std::string concatenarChars(const char* str1, std::string str2) {
+    std::string a = str1;
+    std::string b = str2;
+    return std::string(a + b);
+}
+
+std::map<GLchar, Character> Characters;
+GLuint VAO, VBO;
 
 struct Bala {
     glm::vec3 posicion;
@@ -51,6 +85,7 @@ glm::vec3 ubicacionNave = glm::vec3(-1.3f, -1.0f, 7.5f);
 float rotacionNave = glm::radians(0.0f);
 bool teclaAPresionada = false;
 bool teclaDPresionada = false;
+bool estaVivo = true;
 
 struct Asteroide {
     glm::vec3 posicionInicial;
@@ -62,7 +97,9 @@ struct Asteroide {
 std::vector<Asteroide> asteroides;
 
 // Función para generar asteroides aleatoriamente
-static void generarAsteroides() {
+static std::vector<Asteroide> generarAsteroides() {
+
+    std::vector<Asteroide> listaAsteroides;
 
     glm::vec3 pos[] = {
         glm::vec3(-4.5f, 6.8f, 25.62f),
@@ -72,16 +109,18 @@ static void generarAsteroides() {
         glm::vec3(-8.4f, 6.8f, 24.7f)
     };
 
-    for (int i = 0; i < 15; i++) {
+    for (int i = 0; i < 12; i++) {
         Asteroide asteroide;
         float offset = (rand() % 5) * 0.5f;
         int ran = (rand() % 5);
         asteroide.posicionInicial = pos[ran] ;
         asteroide.posicionActual = asteroide.posicionInicial + glm::vec3(0.0f, offset, offset);
         asteroide.escala = 0.0025f;
-        asteroide.velocidad = 22.0f;
-        asteroides.push_back(asteroide);
+        asteroide.velocidad = 19.0f;
+        listaAsteroides.push_back(asteroide);
     }
+
+    return listaAsteroides;
 }
 
 // Funcion para verificar las colisiones
@@ -91,7 +130,7 @@ bool checkCollision(const Bala& bullet, const Asteroide& asteroide) {
 }
 bool checkCollision(const glm::vec3& pos1, float scale1, const glm::vec3& pos2, float scale2) {
     float distance = glm::length(pos1 - pos2);
-    return distance < (scale1 + scale2);
+    return distance < (scale1 + scale2 + 0.25f);
 }
 
 int main()
@@ -145,6 +184,7 @@ int main()
     Shader skyboxShader("shaders/skybox.vs", "shaders/skybox.fs");
     Shader solShader("shaders/sol.vs", "shaders/sol.fs");
     Shader balaShader("shaders/bala.vs", "shaders/bala.fs");
+    Shader shaderTexto("shaders/texto.vs", "shaders/texto.fs");
 
     float skyboxVertices[] = {
         // positions
@@ -207,10 +247,9 @@ int main()
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
-    unsigned int solVAO, solVBO;
-    glGenVertexArrays(1, &solVAO);
+    unsigned int solVBO;
     glGenBuffers(1, &solVBO);
-    glBindVertexArray(solVAO);
+    glBindVertexArray(skyboxVAO);
     glBindBuffer(GL_ARRAY_BUFFER, solVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
@@ -235,7 +274,7 @@ int main()
     Model modeloAsteroide("model/asteroide/asteroide.obj");
 
     // Genera asteroides al inicio
-    generarAsteroides();
+    asteroides = generarAsteroides();
 
     float verticesBala[] = {
         -0.05f, -0.05f, -0.05f,
@@ -291,16 +330,19 @@ int main()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
     unsigned int emissionMap = loadTexture("model/spaceship/material_0_emissive.jpeg");
-    // shader configuration
-    // --------------------
     modeloShader.use();
     modeloShader.setInt("emission1", 0);
 
+    // Cargamos la fuente para el texto
+    LoadFont("font/Retro Gaming.ttf");
+    InitTexto();
+    glm::mat4 projection = glm::ortho(0.0f, 1000.0f, 0.0f, 600.0f);
+    shaderTexto.use();
+    shaderTexto.setMat4("projection", projection);
 
-    // draw in wireframe
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    // render loop
-    // -----------
+    int contadorPuntaje = 0;
+    
+    SoundEngine->play2D("audio/getout.ogg", true);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -312,8 +354,10 @@ int main()
 
         // render
         // ------
-        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClearColor(0.082f, 0.1686f, 0.3137f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        RenderText(shaderTexto, concatenarChars("PUNTAJE: ",convertirAChar(contadorPuntaje)), 670.0f, 560.0f, 0.8f, glm::vec3(1.0f));
 
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -329,7 +373,7 @@ int main()
         solShader.setMat4("projection", projection);
         solShader.setMat4("view", view);
 
-        glBindVertexArray(solVAO);
+        glBindVertexArray(skyboxVAO); // Sol con vertices de skybox
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
 
@@ -358,9 +402,8 @@ int main()
             asteroide.posicionActual -= glm::vec3(-0.057f, 0.087f, 0.2f) * asteroide.velocidad * deltaTime;
 
             if (glm::dot(asteroide.posicionActual - camera.Position, -camera.Front) > 1.0f) {
-                // Resetear posición del asteroide cuando pasa más allá de la cámara
-                float offset = (rand() % 5) * 0.5f;
-                asteroide.posicionActual = asteroide.posicionInicial + glm::vec3(0.0f, offset, offset);
+                // Resetear los asteroides cuando pasen más allá de la cámara
+                asteroides = generarAsteroides();
             }
 
             glm::mat4 model = glm::mat4(1.0f);
@@ -368,6 +411,7 @@ int main()
             model = glm::scale(model, glm::vec3(asteroide.escala));
             modeloShader.setMat4("model", model);
             modeloAsteroide.Draw(modeloShader);
+            
         }
            
         // render the loaded model
@@ -385,7 +429,6 @@ int main()
         nave.Draw(modeloShader);
     
         // Renderizar las balas
-
         balaShader.use();
         balaShader.setFloat("light.constant", 1.0f);
         balaShader.setFloat("light.linear", 0.09f);
@@ -401,42 +444,54 @@ int main()
             model = glm::translate(model, bala.posicion);
             model = glm::scale(model, glm::vec3(0.7f));
             balaShader.setVec3("light.position", bala.posicion);
-
             balaShader.setMat4("model", model);
             glBindVertexArray(balaVAO);
             glDrawArrays(GL_TRIANGLES, 0, 36);
-            //std::cout << bala.posicion.x << ", " << bala.posicion.y << ", " << bala.posicion.z << std::endl;
         }
-        //cambie esto
-        // Detecci?n y eliminaci?n de colisiones
-        for (auto bulletIt = balas.begin(); bulletIt != balas.end(); ) {
-            bool collisionDetected = false;
-            for (auto asteroidIt = asteroides.begin(); asteroidIt != asteroides.end(); ) {
-                if (checkCollision(bulletIt->posicion, 0.35f, asteroidIt->posicionActual, asteroidIt->escala)) {
-                    collisionDetected = true;
-                    asteroidIt = asteroides.erase(asteroidIt); // Eliminar asteroide
+
+
+        // Detección y eliminación de colisiones
+        for (auto balaIt = balas.begin(); balaIt != balas.end(); ) {
+            bool colisionDetectada = false;
+            for (auto asteroideIt = asteroides.begin(); asteroideIt != asteroides.end(); ) {
+                if (checkCollision(balaIt->posicion, 0.35f, asteroideIt->posicionActual, asteroideIt->escala)) {
+                    colisionDetectada = true;
+                    asteroideIt = asteroides.erase(asteroideIt); // Eliminar asteroide
+                    SoundEngine->play2D("audio/bangSmall.wav");
+                    contadorPuntaje++;
                     std::cout << "Asteroide destruido" << std::endl; // Mensaje en la consola
                 }
                 else {
-                    ++asteroidIt;
+                    ++asteroideIt;
                 }
             }
-            if (collisionDetected) {
-                bulletIt = balas.erase(bulletIt); // Eliminar bala
+            if (colisionDetectada) {
+                balaIt = balas.erase(balaIt); // Eliminar bala
                 std::cout << "Bala destruida" << std::endl; // Mensaje en la consola
             }
             else {
-                ++bulletIt;
+                ++balaIt;
             }
         }
 
+        // Verificar colisión entre la nave y los asteroides
+        if (estaVivo) {
+            for (auto& asteroide : asteroides) {
+                if (checkCollision(ubicacionNave, 1.0f, asteroide.posicionActual, 1.0f)) {
+                    SoundEngine->play2D("audio/lost.wav");
+                    estaVivo = false;
+                    ubicacionNave = glm::vec3(0.0f);
+                    for (auto& asteroide : asteroides) {
+                        asteroide.velocidad = 0.0f;
+                    }
+                    break; // Salir del bucle si hay una colisión
+                }
 
-        // Verificar colisi?n entre la nave y los asteroides
-        for (const auto& asteroide : asteroides) {
-            if (checkCollision(ubicacionNave, 0.3f, asteroide.posicionActual, asteroide.escala)) {
-                std::cout << "perdiste" << std::endl; // Mensaje en la consola
-                break; // Salir del bucle si hay una colisi?n
+                break;
             }
+        }
+        else {
+            RenderText(shaderTexto, "FIN DEL JUEGO", 85.0f, 275.0f, 2.0f, glm::vec3(1.0f, 0.0f, 0.0f));
         }
 
         //Eliminar balas lejanas
@@ -460,9 +515,6 @@ int main()
         glBindVertexArray(0);
         glDepthFunc(GL_LESS);
 
-        
-
-
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -478,67 +530,74 @@ void processInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
-        if (!teclaAPresionada) {
-            teclaAPresionada = true;
-        }
-        if (ubicacionNave.x <= 0.99f && ubicacionNave.z <= 8.37f) {
-            ubicacionNave += glm::vec3(0.005f, 0.0f, 0.0012f);
-            rotacionNave = glm::radians(15.0f);
-        }
-    }
-
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_RELEASE) {
-        if (teclaAPresionada) {
-            teclaAPresionada = false;
-            rotacionNave = glm::radians(0.0f);
-        }
-    }
-
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        if (!teclaDPresionada) {
-            teclaDPresionada = true;
-        }
-        if (ubicacionNave.x >= -3.74f && ubicacionNave.z >= 6.6f) {
-            ubicacionNave += glm::vec3(-0.005f, 0.0f, -0.0012f);
-            rotacionNave = glm::radians(-15.0f);
-        }
-    }
-    
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE) {
-        if (teclaDPresionada) {
-            teclaDPresionada = false;
-            rotacionNave = glm::radians(0.0f);
-        }
-    }
-
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        if (ubicacionNave.y <= 1.2f) {
-            ubicacionNave += glm::vec3(0.0f, 0.003f, 0.0f);
-        }
-    }
-
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        if(ubicacionNave.y >= -2.0f )
-        ubicacionNave += glm::vec3(0.0f, -0.003f, 0.0f);
-    }
+    if (estaVivo) {
         
-    static float lastShot = 0.0f;
-    float currentTime = glfwGetTime();
 
-    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && currentTime - lastShot > 0.35f) {
-        Bala nuevaBala;
-        // Calculamos la posición inicial de la bala basada en la posición y rotación de la nave
-        glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), rotacionNave, glm::vec3(0.0f, 0.0f, 1.0f));
-        glm::vec3 offset = glm::vec3(rotationMatrix * glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
-        nuevaBala.posicion = ubicacionNave /*+ offset*/;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+            if (!teclaAPresionada) {
+                teclaAPresionada = true;
+            }
+            if (ubicacionNave.x <= 0.99f && ubicacionNave.z <= 8.37f) {
+                ubicacionNave += glm::vec3(0.005f, 0.0f, 0.0012f);
+                rotacionNave = glm::radians(15.0f);
+            }
+        }
 
-        // La dirección de la bala siempre será hacia adelante en el eje Z
-        nuevaBala.direccion = getShipForwardDirection();
-        nuevaBala.velocidad = 3.0f;
-        balas.push_back(nuevaBala);
-        lastShot = currentTime;
-        //std::cout << "Bullet created at position: " << nuevaBala.posicion.x << ", " << nuevaBala.posicion.y << ", " << nuevaBala.posicion.z << std::endl;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_RELEASE) {
+            if (teclaAPresionada) {
+                teclaAPresionada = false;
+                rotacionNave = glm::radians(0.0f);
+            }
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+            if (!teclaDPresionada) {
+                teclaDPresionada = true;
+            }
+            if (ubicacionNave.x >= -3.74f && ubicacionNave.z >= 6.6f) {
+                ubicacionNave += glm::vec3(-0.005f, 0.0f, -0.0012f);
+                rotacionNave = glm::radians(-15.0f);
+            }
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE) {
+            if (teclaDPresionada) {
+                teclaDPresionada = false;
+                rotacionNave = glm::radians(0.0f);
+            }
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+            if (ubicacionNave.y <= 1.2f) {
+                ubicacionNave += glm::vec3(0.0f, 0.003f, 0.0f);
+            }
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+            if (ubicacionNave.y >= -2.0f)
+                ubicacionNave += glm::vec3(0.0f, -0.003f, 0.0f);
+        }
+
+        static float lastShot = 0.0f;
+        float currentTime = glfwGetTime();
+
+        if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && currentTime - lastShot > 0.35f) {
+            SoundEngine->play2D("audio/laser.mp3");
+
+            Bala nuevaBala;
+            // Calculamos la posición inicial de la bala basada en la posición y rotación de la nave
+            glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), rotacionNave, glm::vec3(0.0f, 0.0f, 1.0f));
+            glm::vec3 offset = glm::vec3(rotationMatrix * glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+            nuevaBala.posicion = ubicacionNave /*+ offset*/;
+
+            // La dirección de la bala siempre será hacia adelante en el eje Z
+            nuevaBala.direccion = getShipForwardDirection();
+            nuevaBala.velocidad = 5.0f;
+            balas.push_back(nuevaBala);
+            lastShot = currentTime;
+
+
+        }
     }
 }
 
@@ -652,4 +711,116 @@ unsigned int loadTexture(char const* path)
     }
 
     return textureID;
+}
+
+void LoadFont(const std::string& font_path) {
+    FT_Library ft;
+    if (FT_Init_FreeType(&ft)) {
+        std::cerr << "Could not init FreeType Library" << std::endl;
+        return;
+    }
+
+    FT_Face face;
+    if (FT_New_Face(ft, font_path.c_str(), 0, &face)) {
+        std::cerr << "Failed to load font" << std::endl;
+        return;
+    }
+
+    FT_Set_Pixel_Sizes(face, 0, 48);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    for (GLubyte c = 0; c < 128; c++) {
+        if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+            std::cerr << "Failed to load Glyph" << std::endl;
+            continue;
+        }
+
+        GLuint texture;
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RED,
+            face->glyph->bitmap.width,
+            face->glyph->bitmap.rows,
+            0,
+            GL_RED,
+            GL_UNSIGNED_BYTE,
+            face->glyph->bitmap.buffer
+        );
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        Character character = {
+            texture,
+            glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
+            glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
+            static_cast<GLuint>(face->glyph->advance.x)
+        };
+        Characters.insert(std::pair<GLchar, Character>(c, character));
+    }
+
+    FT_Done_Face(face);
+    FT_Done_FreeType(ft);
+}
+
+void InitTexto() {
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
+void RenderText(Shader& shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color) {
+    shader.use();
+    glUniform3f(glGetUniformLocation(shader.ID, "textColor"), color.x, color.y, color.z);
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(VAO);
+
+    std::string::const_iterator c;
+    for (c = text.begin(); c != text.end(); c++) {
+        Character ch = Characters[*c];
+
+        GLfloat xpos = x + ch.Bearing.x * scale;
+        GLfloat ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
+
+        GLfloat w = ch.Size.x * scale;
+        GLfloat h = ch.Size.y * scale;
+
+        GLfloat vertices[6][4] = {
+            { xpos,     ypos + h,   0.0, 0.0 },
+            { xpos,     ypos,       0.0, 1.0 },
+            { xpos + w, ypos,       1.0, 1.0 },
+
+            { xpos,     ypos + h,   0.0, 0.0 },
+            { xpos + w, ypos,       1.0, 1.0 },
+            { xpos + w, ypos + h,   1.0, 0.0 }
+        };
+
+        glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        x += (ch.Advance >> 6) * scale;
+    }
+
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
