@@ -10,4 +10,5 @@ d 1.000000
 illum 2
 map_Kd material_0_baseColor.jpeg
 map_Ke material_0_emissive.jpeg
+map_Ks material_0_specular.jpg
 map_Bump -bm 1.000000 material_0_normal.jpeg

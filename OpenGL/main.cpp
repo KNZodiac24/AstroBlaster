@@ -22,6 +22,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window);
 unsigned int loadCubemap(vector<std::string> faces);
 glm::vec3 getShipForwardDirection();
+unsigned int loadTexture(char const* path);
 
 struct Bala {
     glm::vec3 posicion;
@@ -130,8 +131,10 @@ int main()
 
     // build and compile shaders
     // -------------------------
-    Shader ourShader("shaders/shader_exercise16_mloading.vs", "shaders/shader_exercise16_mloading.fs");
-	Shader skyboxShader("shaders/6.1.skybox.vs", "shaders/6.1.skybox.fs");
+    Shader modeloShader("shaders/modelo.vs", "shaders/modelo.fs");
+    Shader skyboxShader("shaders/skybox.vs", "shaders/skybox.fs");
+    Shader solShader("shaders/sol.vs", "shaders/sol.fs");
+    Shader balaShader("shaders/bala.vs", "shaders/bala.fs");
 
     float skyboxVertices[] = {
         // positions
@@ -151,37 +154,37 @@ int main()
         -1.0f,  1.0f,  1.0f,
         -1.0f, -1.0f,  1.0f,
 
-         // derecha
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
+        // derecha
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
 
-         // frontal
-        -1.0f, -1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
+        // frontal
+       -1.0f, -1.0f,  1.0f,
+       -1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f,
+       -1.0f, -1.0f,  1.0f,
 
-        // arriba
-        -1.0f,  1.0f, -1.0f,
-         1.0f,  1.0f, -1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f, -1.0f,
+       // arriba
+       -1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+       -1.0f,  1.0f,  1.0f,
+       -1.0f,  1.0f, -1.0f,
 
-        // abajo
-        -1.0f, -1.0f, -1.0f, 
-        -1.0f, -1.0f,  1.0f, 
-         1.0f, -1.0f, -1.0f, 
-         1.0f, -1.0f, -1.0f, 
-        -1.0f, -1.0f,  1.0f, 
-         1.0f, -1.0f,  1.0f
+       // abajo
+       -1.0f, -1.0f, -1.0f,
+       -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+       -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f
     };
 
     // skybox VAO
@@ -190,6 +193,15 @@ int main()
     glGenBuffers(1, &skyboxVBO);
     glBindVertexArray(skyboxVAO);
     glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+    unsigned int solVAO, solVBO;
+    glGenVertexArrays(1, &solVAO);
+    glGenBuffers(1, &solVBO);
+    glBindVertexArray(solVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, solVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
@@ -211,7 +223,7 @@ int main()
     // Cargamos los modelos
     Model nave("model/spaceship/spaceship.obj");
     Model modeloAsteroide("model/asteroide/asteroide.obj");
-   
+
     // Genera asteroides al inicio
     generarAsteroides();
 
@@ -268,6 +280,12 @@ int main()
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
+    unsigned int emissionMap = loadTexture("model/spaceship/material_0_emissive.jpeg");
+    // shader configuration
+    // --------------------
+    modeloShader.use();
+    modeloShader.setInt("emission1", 0);
+
 
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -287,14 +305,41 @@ int main()
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // don't forget to enable shader before setting uniforms
-        ourShader.use();
-     
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
-        ourShader.setMat4("projection", projection);
-        ourShader.setMat4("view", view);
+
+        solShader.use();
+
+        glm::mat4 sol = glm::mat4(1.0f);
+        sol = glm::translate(sol, glm::vec3(1.5f, 2.0f, 10.0f));
+        sol = glm::scale(sol, glm::vec3(0.25f, 0.25f, 0.25f));
+
+        solShader.setMat4("model", sol);
+        solShader.setMat4("projection", projection);
+        solShader.setMat4("view", view);
+
+        glBindVertexArray(solVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+
+        // don't forget to enable shader before setting uniforms
+        modeloShader.use();
+     
+        modeloShader.setVec3("light.position", 1.5f, 2.0f, 10.0f);
+        modeloShader.setVec3("light.ambient", 0.2f, 0.2f, 0.2f);
+        modeloShader.setVec3("light.diffuse", 0.5f, 0.5f, 0.5f);
+        modeloShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+        
+        modeloShader.setMat4("projection", projection);
+        modeloShader.setMat4("view", view);
+
+        balaShader.use();
+
+        balaShader.setMat4("projection", projection);
+        balaShader.setMat4("view", view);
+
+        modeloShader.use();
 
         // Actualiza y renderiza los asteroides
         for (auto& asteroide : asteroides) {
@@ -311,8 +356,8 @@ int main()
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, asteroide.posicionActual);
             model = glm::scale(model, glm::vec3(asteroide.escala));
-            ourShader.setMat4("model", model);
-            modeloAsteroide.Draw(ourShader);
+            modeloShader.setMat4("model", model);
+            modeloAsteroide.Draw(modeloShader);
         }
            
         // render the loaded model
@@ -322,9 +367,42 @@ int main()
         model = glm::rotate(model, glm::radians(164.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(20.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         model = glm::rotate(model, rotacionNave, glm::vec3(0.0f, 0.0f, 1.0f));
-        ourShader.setMat4("model", model);
-        nave.Draw(ourShader);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, emissionMap);
+
+        modeloShader.setMat4("model", model);
+        nave.Draw(modeloShader);
     
+        // Renderizar las balas
+
+        balaShader.use();
+        balaShader.setFloat("light.constant", 1.0f);
+        balaShader.setFloat("light.linear", 0.09f);
+        balaShader.setFloat("light.quadratic", 0.032f);
+        balaShader.setVec3("light.ambient", 0.0f, 1.0f, 0.0f);
+        balaShader.setVec3("light.diffuse", 1.0f, 1.0f, 1.0f);
+        balaShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+
+
+        for (auto& bala : balas) {
+            bala.posicion += bala.direccion * bala.velocidad * deltaTime;
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, bala.posicion);
+            model = glm::scale(model, glm::vec3(0.7f));
+            balaShader.setVec3("light.position", bala.posicion);
+
+            balaShader.setMat4("model", model);
+            glBindVertexArray(balaVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+            //std::cout << bala.posicion.x << ", " << bala.posicion.y << ", " << bala.posicion.z << std::endl;
+        }
+
+        //Eliminar balas lejanas
+        balas.erase(std::remove_if(balas.begin(), balas.end(),
+            [](const Bala& b) { return glm::length(b.posicion - ubicacionNave) > 20.0f; }),
+            balas.end());
+
         processInput(window);
         
 		
@@ -341,26 +419,7 @@ int main()
         glBindVertexArray(0);
         glDepthFunc(GL_LESS);
 
-        // Renderizar las balas
-
-        ourShader.use();
-        ourShader.setVec3("objectColor", glm::vec3(1.0f, 0.0f, 0.0f));
-
-        for (auto& bala : balas) {
-            bala.posicion += bala.direccion * bala.velocidad * deltaTime;
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, bala.posicion);
-            model = glm::scale(model, glm::vec3(0.7f));
-            ourShader.setMat4("model", model);
-            glBindVertexArray(balaVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-            //std::cout << bala.posicion.x << ", " << bala.posicion.y << ", " << bala.posicion.z << std::endl;
-        }
-
-        //Eliminar balas lejanas
-        balas.erase(std::remove_if(balas.begin(), balas.end(),
-            [](const Bala& b) { return glm::length(b.posicion - ubicacionNave) > 20.0f; }),
-            balas.end());
+        
 
 
         glfwSwapBuffers(window);
@@ -512,6 +571,44 @@ unsigned int loadCubemap(vector<std::string> faces)
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    return textureID;
+}
+
+
+unsigned int loadTexture(char const* path)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    unsigned char* data = stbi_load(path, &width, &height, &nrComponents, 0);
+    if (data)
+    {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else
+    {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
 
     return textureID;
 }

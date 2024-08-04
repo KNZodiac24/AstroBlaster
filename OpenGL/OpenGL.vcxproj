@@ -136,10 +136,14 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\6.1.skybox.fs" />
-    <None Include="shaders\6.1.skybox.vs" />
-    <None Include="shaders\shader_exercise16_mloading.fs" />
-    <None Include="shaders\shader_exercise16_mloading.vs" />
+    <None Include="shaders\bala.fs" />
+    <None Include="shaders\bala.vs" />
+    <None Include="shaders\modelo.fs" />
+    <None Include="shaders\modelo.vs" />
+    <None Include="shaders\skybox.fs" />
+    <None Include="shaders\skybox.vs" />
+    <None Include="shaders\sol.fs" />
+    <None Include="shaders\sol.vs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -32,16 +32,28 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\6.1.skybox.vs">
+    <None Include="shaders\modelo.fs">
       <Filter>Archivos de origen\shaders</Filter>
     </None>
-    <None Include="shaders\6.1.skybox.fs">
+    <None Include="shaders\modelo.vs">
       <Filter>Archivos de origen\shaders</Filter>
     </None>
-    <None Include="shaders\shader_exercise16_mloading.fs">
+    <None Include="shaders\skybox.fs">
       <Filter>Archivos de origen\shaders</Filter>
     </None>
-    <None Include="shaders\shader_exercise16_mloading.vs">
+    <None Include="shaders\skybox.vs">
+      <Filter>Archivos de origen\shaders</Filter>
+    </None>
+    <None Include="shaders\sol.fs">
+      <Filter>Archivos de origen\shaders</Filter>
+    </None>
+    <None Include="shaders\sol.vs">
+      <Filter>Archivos de origen\shaders</Filter>
+    </None>
+    <None Include="shaders\bala.fs">
+      <Filter>Archivos de origen\shaders</Filter>
+    </None>
+    <None Include="shaders\bala.vs">
       <Filter>Archivos de origen\shaders</Filter>
     </None>
   </ItemGroup>
