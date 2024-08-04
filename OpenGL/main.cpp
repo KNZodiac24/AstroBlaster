@@ -273,8 +273,7 @@ int main()
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     // render loop
     // -----------
-    double tiempoAnterior = glfwGetTime();
-    double intervalo = 3.0;
+
     while (!glfwWindowShouldClose(window))
     {
         // per-frame time logic
