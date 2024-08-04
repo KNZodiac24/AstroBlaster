@@ -92,6 +92,7 @@ struct Asteroide {
     glm::vec3 posicionActual;
     float escala;
     float velocidad;
+    bool esOvni;
 };
 // Lista de asteroides
 std::vector<Asteroide> asteroides;
@@ -115,8 +116,12 @@ static std::vector<Asteroide> generarAsteroides() {
         int ran = (rand() % 5);
         asteroide.posicionInicial = pos[ran] ;
         asteroide.posicionActual = asteroide.posicionInicial + glm::vec3(0.0f, offset, offset);
-        asteroide.escala = 0.0025f;
+        
         asteroide.velocidad = 19.0f;
+        if (i % 2 == 0) { asteroide.esOvni = true; asteroide.escala = 0.09f;
+        }
+        else { asteroide.esOvni = false; asteroide.escala = 0.0025f;
+        }
         listaAsteroides.push_back(asteroide);
     }
 
@@ -148,7 +153,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Naves", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "AstroBlaster", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -272,6 +277,7 @@ int main()
     // Cargamos los modelos
     Model nave("model/spaceship/spaceship.obj");
     Model modeloAsteroide("model/asteroide/asteroide.obj");
+    Model modeloOvni("model/ovni/ovni.obj");
 
     // Genera asteroides al inicio
     asteroides = generarAsteroides();
@@ -409,8 +415,17 @@ int main()
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, asteroide.posicionActual);
             model = glm::scale(model, glm::vec3(asteroide.escala));
+            if (asteroide.esOvni) {
+                model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+            }
             modeloShader.setMat4("model", model);
-            modeloAsteroide.Draw(modeloShader);
+            if (asteroide.esOvni) {
+                modeloOvni.Draw(modeloShader);
+            }
+            else {
+                modeloAsteroide.Draw(modeloShader);
+
+            }
             
         }
            

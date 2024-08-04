@@ -1,0 +1,23 @@
+# Blender 4.2.0 MTL File: 'None'
+# www.blender.org
+
+newmtl aiStandardSurface1
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd aiStandardSurface1_baseColor.png
+map_Ke aiStandardSurface1_emissive.png
+map_Bump -bm 1.000000 aiStandardSurface1_normal.png
+
+newmtl glass
+Ns 159.999985
+Ka 1.000000 1.000000 1.000000
+Kd 0.053671 0.431544 0.485409
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 0.038300
+illum 9
