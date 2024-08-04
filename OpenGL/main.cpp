@@ -340,15 +340,15 @@ int main()
     modeloShader.setInt("emission1", 0);
 
     // Cargamos la fuente para el texto
-    LoadFont("font/Retro Gaming.ttf");
     InitTexto();
+    LoadFont("font/Retro Gaming.ttf");
     glm::mat4 projection = glm::ortho(0.0f, 1000.0f, 0.0f, 600.0f);
     shaderTexto.use();
-    shaderTexto.setMat4("projection", projection);
+    glUniformMatrix4fv(glGetUniformLocation(shaderTexto.ID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
     int contadorPuntaje = 0;
     
-    SoundEngine->play2D("audio/getout.ogg", true);
+    SoundEngine->play2D("audio/fondo.mp3", true);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -474,7 +474,7 @@ int main()
                     asteroideIt = asteroides.erase(asteroideIt); // Eliminar asteroide
                     SoundEngine->play2D("audio/bangSmall.wav");
                     contadorPuntaje++;
-                    std::cout << "Asteroide destruido" << std::endl; // Mensaje en la consola
+                    //std::cout << "Asteroide destruido" << std::endl; // Mensaje en la consola
                 }
                 else {
                     ++asteroideIt;
@@ -482,7 +482,7 @@ int main()
             }
             if (colisionDetectada) {
                 balaIt = balas.erase(balaIt); // Eliminar bala
-                std::cout << "Bala destruida" << std::endl; // Mensaje en la consola
+                //std::cout << "Bala destruida" << std::endl; // Mensaje en la consola
             }
             else {
                 ++balaIt;
@@ -516,8 +516,7 @@ int main()
 
         processInput(window);
         
-		
-		glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
+        glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
         skyboxShader.use();
         view = glm::mat4(glm::mat3(camera.GetViewMatrix())); // remove translation from the view matrix
         skyboxShader.setMat4("view", view);
@@ -529,6 +528,7 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
         glDepthFunc(GL_LESS);
+		
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -757,7 +757,7 @@ void LoadFont(const std::string& font_path) {
         glTexImage2D(
             GL_TEXTURE_2D,
             0,
-            GL_RED,
+            GL_RGBA,
             face->glyph->bitmap.width,
             face->glyph->bitmap.rows,
             0,
@@ -789,14 +789,15 @@ void InitTexto() {
     glGenBuffers(1, &VBO);
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
 }
 
 void RenderText(Shader& shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color) {
